@@ -10,7 +10,7 @@ import java.awt.*;
 
 public class FormPanel extends JPanel {
 
-    private final JSlider formIntSlider;
+    private final JSlider formSlider;
     private final JSpinner formIntSpinner;
 
     public FormPanel(EventBus eventBus) {
@@ -21,16 +21,16 @@ public class FormPanel extends JPanel {
         JLabel formLabel = new JLabel("Form (number of angles):");
         this.add(formLabel);
 
-        formIntSlider = new JSlider(
+        formSlider = new JSlider(
                 FormEvent.minNumberOfAngles(),
                 FormEvent.maxNumberOfAngles(),
                 FormEvent.initialNumberOfAngles()
         );
-        formIntSlider.setPaintLabels(true);
-        formIntSlider.setMajorTickSpacing(2);
-        formIntSlider.setMinorTickSpacing(1);
-        formIntSlider.addChangeListener((event) -> eventBus.post(new FormEvent(formIntSlider.getValue())));
-        this.add(formIntSlider);
+        formSlider.setPaintLabels(true);
+        formSlider.setMajorTickSpacing(2);
+        formSlider.setMinorTickSpacing(1);
+        formSlider.addChangeListener((event) -> eventBus.post(new FormEvent(formSlider.getValue())));
+        this.add(formSlider);
 
         formIntSpinner = new JSpinner(
                 new SpinnerNumberModel(
@@ -46,7 +46,7 @@ public class FormPanel extends JPanel {
 
     @Subscribe
     private void handleFormEvent(FormEvent event) {
-        formIntSlider.setValue(event.numberOfAngles());
+        formSlider.setValue(event.numberOfAngles());
         formIntSpinner.setValue(event.numberOfAngles());
     }
 }
