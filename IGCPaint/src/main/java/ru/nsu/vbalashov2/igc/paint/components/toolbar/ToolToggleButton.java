@@ -7,11 +7,11 @@ import ru.nsu.vbalashov2.igc.paint.tools.events.PaintToolEvent;
 
 import javax.swing.*;
 
-public class ToolButton extends JToggleButton {
+public class ToolToggleButton extends JToggleButton {
 
     private final PaintTool tool;
 
-    public ToolButton(ImageIcon toolImageIcon, PaintTool tool, EventBus eventBus, String toolTipText) {
+    public ToolToggleButton(ImageIcon toolImageIcon, PaintTool tool, EventBus eventBus, String toolTipText) {
         super(toolImageIcon);
 
         this.tool = tool;

@@ -17,6 +17,7 @@ public class PaintToolBar extends JToolBar {
     private static final String settingsIconLocation = "icons/tools/settings.png";
     private static final String squareIconLocation = "icons/tools/square.png";
     private static final String starIconLocation = "icons/tools/star.png";
+    private static final String undoIconLocation = "icons/tools/undo.png";
 
     private static final String blueColorIconLocation = "icons/colors/blue.png";
     private static final String deepBlueColorIconLocation = "icons/colors/deep_blue.png";
@@ -28,7 +29,7 @@ public class PaintToolBar extends JToolBar {
 
     private static final int iconSize = 16;
 
-    public PaintToolBar(Color initialColor, EventBus eventBus) throws IOException {
+    public PaintToolBar(EventBus eventBus) throws IOException {
         ImageIcon clearImageIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(clearIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
         ImageIcon colorChooserImageIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(colorChooserIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
         ImageIcon fillImageIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(fillIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
@@ -37,6 +38,7 @@ public class PaintToolBar extends JToolBar {
         ImageIcon settingsImageIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(settingsIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
         ImageIcon squareImageIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(squareIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
         ImageIcon starImageIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(starIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+        ImageIcon undoImageIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(undoIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
 
         ImageIcon blueColorIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(blueColorIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
         ImageIcon deepBlueColorIcon = new ImageIcon(ImageIO.read(ClassLoader.getSystemResource(deepBlueColorIconLocation)).getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
@@ -52,10 +54,10 @@ public class PaintToolBar extends JToolBar {
 
         this.addSeparator();
 
-        this.add(new ToolButton(lineImageIcon, PaintTool.LINE, eventBus));
-        this.add(new ToolButton(polygonImageIcon, PaintTool.POLYGON, eventBus));
-        this.add(new ToolButton(starImageIcon, PaintTool.STAR, eventBus));
-        this.add(new ToolButton(fillImageIcon, PaintTool.FILL, eventBus));
+        this.add(new ToolToggleButton(fillImageIcon, PaintTool.FILL, eventBus, "Fill area"));
+        this.add(new ToolToggleButton(lineImageIcon, PaintTool.LINE, eventBus, "Draw a line using 2 clicks"));
+        this.add(new ToolToggleButton(polygonImageIcon, PaintTool.POLYGON, eventBus, "Draw a polygon"));
+        this.add(new ToolToggleButton(starImageIcon, PaintTool.STAR, eventBus, "Draw a star"));
 
         this.addSeparator();
 
@@ -63,7 +65,11 @@ public class PaintToolBar extends JToolBar {
 
         this.addSeparator();
 
-        this.add(new ColorChooserButton(colorChooserImageIcon, initialColor, eventBus));
+        this.add(new UndoButton(undoImageIcon, eventBus));
+
+        this.addSeparator();
+
+        this.add(new ColorChooserButton(colorChooserImageIcon, eventBus));
 
         this.addSeparator();
 

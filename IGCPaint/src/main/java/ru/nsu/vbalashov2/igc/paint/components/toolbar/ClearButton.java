@@ -7,7 +7,8 @@ import javax.swing.*;
 
 public class ClearButton extends JButton {
     public ClearButton(ImageIcon clearImageIcon, EventBus eventBus) {
-        this.setIcon(clearImageIcon);
-        this.addActionListener((event) -> eventBus.post(new ClearEvent()));
+        setIcon(clearImageIcon);
+        addActionListener((event) -> eventBus.post(new ClearEvent()));
+        setToolTipText("Clear area");
     }
 }

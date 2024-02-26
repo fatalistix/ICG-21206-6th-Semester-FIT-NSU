@@ -9,8 +9,9 @@ public class SettingsButton extends JButton {
     public SettingsButton(ImageIcon settingsImageIcon, EventBus eventBus) {
         OptionsPanel optionsPanel = new OptionsPanel(eventBus);
 
-        this.setIcon(settingsImageIcon);
-        this.addActionListener((event) -> JOptionPane.showMessageDialog(
+        setIcon(settingsImageIcon);
+        setToolTipText("Open settings");
+        addActionListener((event) -> JOptionPane.showMessageDialog(
                 this,
                 optionsPanel,
                 "Options",
