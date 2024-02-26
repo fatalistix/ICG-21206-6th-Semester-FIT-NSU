@@ -10,7 +10,7 @@ import java.util.Stack;
 
 public class Fill implements Tool {
 
-    private Color color = Color.BLACK;
+    private Color color = ColorEvent.initialColor();
 
     public Fill(EventBus eventBus) {
         eventBus.register(this);

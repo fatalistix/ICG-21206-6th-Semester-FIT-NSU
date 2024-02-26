@@ -2,10 +2,7 @@ package ru.nsu.vbalashov2.igc.paint.tools;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-import ru.nsu.vbalashov2.igc.paint.tools.events.ColorEvent;
-import ru.nsu.vbalashov2.igc.paint.tools.events.FormEvent;
-import ru.nsu.vbalashov2.igc.paint.tools.events.RotateEvent;
-import ru.nsu.vbalashov2.igc.paint.tools.events.SizeEvent;
+import ru.nsu.vbalashov2.igc.paint.tools.events.*;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -14,15 +11,14 @@ import java.util.List;
 
 public class Star implements Tool {
 
-    private Color color = Color.BLACK;
-    private int numberOfAngles = 6;
-    private int radius = 100;
-    private int rotateAngle = 0;
-    private final Line line;
+    private Color color = ColorEvent.initialColor();
+    private int numberOfAngles = FormEvent.initialNumberOfAngles();
+    private int radius = SizeEvent.initialRadius();
+    private int rotateAngle = RotateEvent.initialAngle();
+    private int thickness = ThicknessEvent.initialThickness();
 
-    public Star(Line line, EventBus eventBus) {
+    public Star(EventBus eventBus) {
         eventBus.register(this);
-        this.line = line;
     }
 
     @Override
@@ -47,12 +43,12 @@ public class Star implements Tool {
         for (int i = 1; i < points.size(); ++i) {
             Point start = points.get(i - 1);
             Point end = points.get(i);
-            line.drawLine(start.x, start.y, end.x, end.y, image, color);
+            Line.drawLine(start.x, start.y, end.x, end.y, image, color, thickness);
         }
 
         Point start = points.get(points.size() - 1);
         Point end = points.get(0);
-        line.drawLine(start.x, start.y, end.x, end.y, image, color);
+        Line.drawLine(start.x, start.y, end.x, end.y, image, color, thickness);
     }
 
     @Subscribe
@@ -73,5 +69,10 @@ public class Star implements Tool {
     @Subscribe
     private void handleSizeEvent(SizeEvent sizeEvent) {
         radius = sizeEvent.radius();
+    }
+
+    @Subscribe
+    private void handleThicknessEvent(ThicknessEvent thicknessEvent) {
+        thickness = thicknessEvent.thickness();
     }
 }

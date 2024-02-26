@@ -3,13 +3,15 @@ package ru.nsu.vbalashov2.igc.paint.tools;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import ru.nsu.vbalashov2.igc.paint.tools.events.ColorEvent;
+import ru.nsu.vbalashov2.igc.paint.tools.events.ThicknessEvent;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
 
 public class Line implements Tool {
 
-    private Color color = Color.BLACK;
+    private Color color = ColorEvent.initialColor();
+    private int thickness = ThicknessEvent.initialThickness();
     private Point start = new Point(0, 0);
     private boolean startSelected = false;
 
@@ -23,7 +25,8 @@ public class Line implements Tool {
             start = new Point(x, y);
             startSelected = true;
         } else {
-            drawBresenhamLine(start.x, start.y, x, y, image, color);
+            drawLine(start.x, start.y, x, y, image, color, thickness);
+
             startSelected = false;
         }
     }
@@ -85,12 +88,19 @@ public class Line implements Tool {
     }
 
     private static boolean inBounds(BufferedImage image, int x, int y) {
-        return 0 <= x && x <= image.getWidth() &&
-                0 <= y && y <= image.getHeight();
+        return 0 <= x && x < image.getWidth() &&
+                0 <= y && y < image.getHeight();
     }
 
-    public void drawLine(int xStart, int yStart, int xEnd, int yEnd, BufferedImage image, Color color) {
-        drawBresenhamLine(xStart, yStart, xEnd, yEnd, image, color);
+    public static void drawLine(int xStart, int yStart, int xEnd, int yEnd, BufferedImage image, Color color, int thickness) {
+        if (thickness == 1) {
+            drawBresenhamLine(xStart, yStart, xEnd, yEnd, image, color);
+        } else {
+            Graphics2D graphics2D = image.createGraphics();
+            graphics2D.setColor(color);
+            graphics2D.setStroke(new BasicStroke(thickness));
+            graphics2D.drawLine(xStart, yStart, xEnd, yEnd);
+        }
     }
 
     @Subscribe
@@ -101,5 +111,10 @@ public class Line implements Tool {
     @Subscribe
     private void handlePaintToolEvent(PaintTool paintTool) {
         startSelected = false;
+    }
+
+    @Subscribe
+    private void handleThicknessEvent(ThicknessEvent event) {
+        thickness = event.thickness();
     }
 }
