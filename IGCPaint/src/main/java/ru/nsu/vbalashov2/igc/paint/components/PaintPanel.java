@@ -2,133 +2,151 @@ package ru.nsu.vbalashov2.igc.paint.components;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-import ru.nsu.vbalashov2.igc.paint.tools.Fill;
-import ru.nsu.vbalashov2.igc.paint.tools.PaintTool;
-import ru.nsu.vbalashov2.igc.paint.tools.events.ClearEvent;
+import ru.nsu.vbalashov2.igc.paint.tools.Polygon;
+import ru.nsu.vbalashov2.igc.paint.tools.*;
+import ru.nsu.vbalashov2.igc.paint.tools.events.*;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
 import java.awt.image.BufferedImage;
+import java.awt.image.Raster;
+import java.io.IOException;
 
 public class PaintPanel extends JPanel {
-    private static final int DEFAULT_IMAGE_SIZE = 10000;
-    private static final Color DEFAULT_BACKGROUND_COLOR = Color.WHITE;
+    private static final Color DEFAULT_BACKGROUND_COLOR = new Color(230, 230, 255);
+    private static final Color IMAGE_INIT_COLOR = Color.WHITE;
+    private final EventBus eventBus;
 
-    private EventBus eventBus;
-    private BufferedImage image = new BufferedImage(DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE, BufferedImage.TYPE_INT_RGB);
+    private BufferedImage image = new BufferedImage(
+            ImageResizeEvent.initialWidth(),
+            ImageResizeEvent.initialHeight(),
+            BufferedImage.TYPE_INT_RGB
+    );
+
     private Graphics2D graphics2D = image.createGraphics();
-    private boolean mouseIsPressed = false;
-    private Color currentColor = Color.BLACK;
-    private PaintTool currentTool = PaintTool.PEN;
-    private int currentThickness = 5;
+    private PaintTool currentTool = PaintToolEvent.initialPaintTool();
+    private final Line line;
+    private final Fill fill;
+    private final Star star;
+    private final Polygon polygon;
+    private final History history = new History();
 
     public PaintPanel(EventBus eventBus) {
         this.eventBus = eventBus;
-        this.setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
+
         eventBus.register(this);
 
-        graphics2D.setColor(DEFAULT_BACKGROUND_COLOR);
-        graphics2D.fillRect(0, 0, DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE);
+        line = new Line(eventBus);
+        fill = new Fill(eventBus);
+        star = new Star(eventBus);
+        polygon = new Polygon(eventBus);
 
-        this.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                mouseIsPressed = true;
-                graphics2D.setColor(currentColor);
-            }
+        setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
+        setBackground(DEFAULT_BACKGROUND_COLOR);
 
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                mouseIsPressed = false;
-            }
+        clearImage();
+
+        addMouseListener(new MouseAdapter() {
 
             @Override
             public void mouseClicked(MouseEvent e) {
+                history.save(image.getData());
                 switch (currentTool) {
-                    case PEN -> {
-                        graphics2D.fillOval(e.getX(), e.getY(), currentThickness, currentThickness);
-                    }
-                    case FILL -> {
-                        System.out.println("FILLING");
-                        Fill.fillArea(
-                                image,
-                                e.getX(),
-                                e.getY(),
-                                new Color(image.getRGB(e.getX(), e.getY())),
-                                currentColor
-                        );
-                    }
-                    case LINE -> {
-
-                    }
-                    case STAR -> {
-
-                    }
-                    case POLYGON -> {
-
-                    }
+                    case FILL -> fill.use(image, e.getX(), e.getY());
+                    case LINE -> line.use(image, e.getX(), e.getY());
+                    case STAR -> star.use(image, e.getX(), e.getY());
+                    case POLYGON -> polygon.use(image, e.getX(), e.getY());
                 }
                 repaint();
             }
         });
-
-        this.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                if (mouseIsPressed &&
-                        0 <= e.getX() && e.getX() < image.getWidth() &&
-                        0 <= e.getY() && e.getY() < image.getHeight()) {
-                    switch (currentTool) {
-                        case PEN -> {
-                            graphics2D.fillOval(e.getX(), e.getY(), currentThickness, currentThickness);
-                        }
-                        case FILL -> {
-
-                        }
-                        case LINE -> {
-
-                        }
-                        case STAR -> {
-
-                        }
-                        case POLYGON -> {
-
-                        }
-                    }
-                    repaint();
-                }
-            }
-        });
-    }
-
-    public void setNewImage(BufferedImage newImage) {
-        this.image = newImage;
-        repaint();
     }
 
     @Override
     public void paint(Graphics g) {
+        super.paint(g);
         g.drawImage(image, 0, 0, this);
     }
 
     @Subscribe
-    private void handleNewColorEvent(Color newColor) {
-        this.currentColor = newColor;
-    }
-
-    @Subscribe
-    private void handleNewToolEvent(PaintTool newTool) {
-        this.currentTool = newTool;
+    private void handlePaintToolEvent(PaintToolEvent paintToolEvent) {
+        this.currentTool = paintToolEvent.paintTool();
     }
 
     @Subscribe
     private void handleClearEvent(ClearEvent event) {
-        this.graphics2D.setColor(DEFAULT_BACKGROUND_COLOR);
-        this.graphics2D.fillRect(0, 0, image.getWidth(), image.getHeight());
-        this.graphics2D.setColor(currentColor);
+        history.save(image.getData());
+        clearImage();
+        repaint();
+    }
+
+    private void clearImage() {
+        graphics2D.setColor(IMAGE_INIT_COLOR);
+        graphics2D.fillRect(0, 0, image.getWidth(), image.getHeight());
+    }
+
+    @Subscribe
+    private void handleBufferedImageEvent(BufferedImageEvent event) {
+        history.save(image.getData());
+        image = event.image();
+        graphics2D = image.createGraphics();
+        setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
+        revalidate();
+        repaint();
+        eventBus.post(new ScrollRevalidateEvent());
+    }
+
+    @Subscribe
+    private void handleSaveImageToFileEvent(SaveImageToFileEvent event) {
+        try {
+            ImageIO.write(image, "PNG", event.file());
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(
+                    this, e.getMessage(), "Error saving file", JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
+    @Subscribe
+    private void handleImageResizeEvent(ImageResizeEvent event) {
+        history.save(image.getData());
+        BufferedImage newImage = new BufferedImage(event.width(), event.height(), BufferedImage.TYPE_INT_RGB);
+        graphics2D = newImage.createGraphics();
+
+        graphics2D.setColor(IMAGE_INIT_COLOR);
+        graphics2D.fillRect(0, 0, newImage.getWidth(), newImage.getHeight());
+
+        newImage.setData(image.getData());
+        image = newImage;
+        setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
+        revalidate();
+        repaint();
+        eventBus.post(new ScrollRevalidateEvent());
+
+        repaint();
+    }
+
+    @Subscribe
+    private void handleUndoEvent(UndoEvent event) {
+        Raster r = history.getPrevious();
+        if (r == null) {
+            return;
+        }
+
+        if (r.getWidth() != image.getWidth() || r.getHeight() != image.getHeight()) {
+            BufferedImage newImage = new BufferedImage(r.getWidth(), r.getHeight(), BufferedImage.TYPE_INT_RGB);
+            graphics2D = newImage.createGraphics();
+            image = newImage;
+            setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
+            revalidate();
+            repaint();
+            eventBus.post(new ScrollRevalidateEvent());
+        }
+
+        image.setData(r);
         repaint();
     }
 }
