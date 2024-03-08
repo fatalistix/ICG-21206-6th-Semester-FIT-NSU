@@ -125,7 +125,6 @@ public class PaintPanel extends JPanel {
         revalidate();
         repaint();
         eventBus.post(new ScrollRevalidateEvent());
-
         repaint();
     }
 
