@@ -1,1 +1,1 @@
-# IGC-21206-6th-Semester-FIT-NSU
+# ICG-21206-6th-Semester-FIT-NSU
