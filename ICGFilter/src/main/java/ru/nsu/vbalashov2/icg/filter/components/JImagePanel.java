@@ -1,12 +1,10 @@
 package ru.nsu.vbalashov2.icg.filter.components;
 
 import ru.nsu.vbalashov2.icg.filter.FrameWork;
+import ru.nsu.vbalashov2.icg.filter.tools.events.EventPublishSubjects;
+import ru.nsu.vbalashov2.icg.filter.tools.filters.*;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Point;
-import java.awt.Rectangle;
+import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -14,10 +12,13 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.WritableRaster;
+import java.io.IOException;
 import java.io.Serial;
 
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
+import javax.imageio.ImageIO;
+import javax.swing.*;
 
 /**
  * Image-viewer created in some JScrollPane
@@ -31,7 +32,8 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
     private Dimension panelSize;		// visible image size
     private final JScrollPane spIm;
     private final FrameWork parentComponent;
-    private BufferedImage img = null;	// image to view
+    private BufferedImage currentImg = null;	// image to view
+    private BufferedImage originalImg = null;   // original image
     private Dimension imSize = null;	// real image size
     private int lastX=0, lastY=0;		// last captured mouse coordinates
     private final double zoomK = 0.05;	// scroll zoom coefficient
@@ -42,7 +44,11 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
      * @param scrollPane - JScrollPane to add a new Image-viewer
      * @throws Exception - given JScrollPane must not be null
      */
-    public JImagePanel(JScrollPane scrollPane, FrameWork parentComponent) throws Exception
+    public JImagePanel(
+            JScrollPane scrollPane,
+            FrameWork parentComponent,
+            EventPublishSubjects eventPublishSubjects
+    ) throws Exception
     {
         if (scrollPane == null)
             throw new Exception("Отсутствует scroll panel для просмотрщика изображений!");
@@ -61,31 +67,110 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         addMouseListener(this);
         addMouseMotionListener(this);
         addMouseWheelListener(this);
+
+        configureEvents(eventPublishSubjects);
+        realSize();
     }
 
-    public JScrollPane getScrollPane ()	{ return spIm; }
+    private void configureEvents(EventPublishSubjects eventPublishSubjects) {
+        eventPublishSubjects.getSaveFilePublishSubject().subscribe(file -> {
+            try {
+                ImageIO.write(currentImg, "PNG", file);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(
+                        JImagePanel.this,
+                        e.getMessage(),
+                        "Error saving file",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        });
 
-    /**
-     * Creates new Image-viewer of the given image in the given JScrollPane
-     * @param scrollPane - JScrollPane to add a new Image-viewer
-     * @param newIm - image to view
-     * @throws Exception - given JScrollPane must nor be null
-     */
-    public JImagePanel(JScrollPane scrollPane, FrameWork parentComponent, BufferedImage newIm) throws Exception
-    {
-        this(scrollPane, parentComponent);
-        setImage(newIm, true);
+        eventPublishSubjects.getNewBufferedImagePublishSubject().subscribe(newImg -> {
+            originalImg = newImg;
+            currentImg = originalImg;
+            setImage(currentImg, false);
+            realSize();
+        });
+
+        eventPublishSubjects.getFitToSizePublishSubject().subscribe(event -> fitScreen());
+
+        eventPublishSubjects.getRealSizePublishSubject().subscribe(event -> realSize());
+
+        BlackWhiteFilter blackWhiteFilter = new BlackWhiteFilter();
+        NegativeFilter negativeFilter = new NegativeFilter();
+        GaussianBlurFilter gaussianBlurFilter = new GaussianBlurFilter(
+                eventPublishSubjects.getGaussianBlurNewSigmaPublishSubject(),
+                eventPublishSubjects.getGaussianBlurNewRadiusPublishSubject()
+        );
+        IncreasingSharpnessFilter increasingSharpnessFilter = new IncreasingSharpnessFilter();
+        EmbossingFilter embossingFilter = new EmbossingFilter();
+        GammaCorrectionFilter gammaCorrectionFilter = new GammaCorrectionFilter(
+                eventPublishSubjects.getGammaCorrectionNewGammaPublishSubject()
+        );
+        RobertsOperatorFilter robertsOperatorFilter = new RobertsOperatorFilter(
+                eventPublishSubjects.getRobertsOperatorNewThresholdPublishSubject()
+        );
+        SobelOperatorFilter sobelOperatorFilter = new SobelOperatorFilter(
+                eventPublishSubjects.getSobelOperatorNewThresholdPublishSubject()
+        );
+        FloydSteinbergDitherFilter floydSteinbergDitherFilter = new FloydSteinbergDitherFilter();
+
+        eventPublishSubjects.getNewFilterTypePublishSubject().subscribe(filter -> {
+            if (currentImg == null) {
+                return;
+            }
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            currentImg = bufferedImageDeepCopy(originalImg);
+            switch (filter) {
+                case BLACK_WHITE -> blackWhiteFilter.use(originalImg, currentImg);
+                case NEGATIVE -> negativeFilter.use(originalImg, currentImg);
+                case GAUSSIAN_BLUR -> gaussianBlurFilter.use(originalImg, currentImg);
+                case INCREASING_SHARPNESS -> increasingSharpnessFilter.use(originalImg, currentImg);
+                case EMBOSSING -> embossingFilter.use(originalImg, currentImg);
+                case GAMMA_CORRECTION -> gammaCorrectionFilter.use(originalImg, currentImg);
+                case ROBERTS_OPERATOR -> robertsOperatorFilter.use(originalImg, currentImg);
+                case SOBEL_OPERATOR -> sobelOperatorFilter.use(originalImg, currentImg);
+                case FLOYD_STEINBERG_DITHER -> floydSteinbergDitherFilter.use(originalImg, currentImg);
+            }
+            setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+            revalidate();
+            repaint();
+            spIm.revalidate();
+            spIm.repaint();
+        });
     }
+
+    private static BufferedImage bufferedImageDeepCopy(BufferedImage bi) {
+        ColorModel cm = bi.getColorModel();
+        boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
+        WritableRaster raster = bi.copyData(null);
+        return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
+    }
+
+    // public JScrollPane getScrollPane ()	{ return spIm; }
+
+//    /**
+//     * Creates new Image-viewer of the given image in the given JScrollPane
+//     * @param scrollPane - JScrollPane to add a new Image-viewer
+//     * @param newIm - image to view
+//     * @throws Exception - given JScrollPane must nor be null
+//     */
+//    public JImagePanel(JScrollPane scrollPane, FrameWork parentComponent, BufferedImage newIm) throws Exception
+//    {
+//        this(scrollPane, parentComponent);
+//        setImage(newIm, true);
+//    }
 
     public void paint(Graphics g)
     {
-        if (img == null)
+        if (currentImg == null)
         {
-            g.setColor(Color.black);
+            g.setColor(new Color(200, 200, 230));
             g.fillRect(0, 0, getWidth(), getHeight());
         }
         else
-            g.drawImage(img, 0, 0, panelSize.width, panelSize.height, null);
+            g.drawImage(currentImg, 0, 0, panelSize.width, panelSize.height, null);
     }
 
 //	public void update(Graphics g)
@@ -107,8 +192,8 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         // defaultView means "fit screen (panel)"
 
         // Draw black screen for no image
-        img = newIm;
-        if (img == null)
+        currentImg = newIm;
+        if (currentImg == null)
         {
             // make full defaultView
             setMaxVisibleRectSize();	// panelSize = getVisibleRectSize();
@@ -118,7 +203,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         }
 
         // Check if it is possible to use defaultView
-        Dimension newImSize = new Dimension(img.getWidth(), img.getHeight());
+        Dimension newImSize = new Dimension(currentImg.getWidth(), currentImg.getHeight());
         if (imSize == null)
             defaultView = true;
         else if ( (newImSize.height != imSize.height) || (newImSize.width != imSize.width) )
@@ -158,7 +243,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
     /**
      * Sets "fit-screen" view.
      */
-    public void fitScreen()	{ setImage(img, true); }
+    public void fitScreen()	{ setImage(currentImg, true); }
 
     /**
      * Sets "real-size" view.
@@ -198,7 +283,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
     }
 
     /**
-     * Sets panelSize to the maximum avaible view-size with hidden scroll bars.
+     * Sets panelSize to the maximum available view-size with hidden scroll bars.
      */
     private void setMaxVisibleRectSize()
     {
@@ -216,7 +301,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
     private boolean setView(Rectangle rect, int minSize)
     {
         // should also take into account ScrollBars size
-        if (img == null)
+        if (currentImg == null)
             return false;
         if (imSize.width<minSize || imSize.height<minSize)
             return false;
@@ -272,7 +357,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
     @Override
     public void mouseWheelMoved(MouseWheelEvent e)
     {
-        if (img == null)
+        if (currentImg == null)
             return;
 
         // Zoom
@@ -390,7 +475,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
 
 
     /**
-     * Process image click and call parrent's methods
+     * Process image click and call parent's methods
      */
     @Override
     public void mouseClicked(MouseEvent e)
