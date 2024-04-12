@@ -1,0 +1,19 @@
+package ru.nsu.vbalashov2.icg.filter.tools.filters;
+
+public enum FilterType {
+
+    BLACK_WHITE,
+    NEGATIVE,
+    GAUSSIAN_BLUR,
+    MEDIAN_BLUR,
+    INCREASING_SHARPNESS,
+    EMBOSSING,
+    GAMMA_CORRECTION,
+    ROBERTS_OPERATOR,
+    SOBEL_OPERATOR,
+    FLOYD_STEINBERG_DITHER,
+    ORDERED_DITHER,
+    WATERCOLORIZATION,
+    ROTATION,
+    BILATERAL,
+}
