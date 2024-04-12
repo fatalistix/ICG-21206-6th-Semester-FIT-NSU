@@ -1,24 +1,18 @@
 package ru.nsu.vbalashov2.icg.filter.components;
 
+import io.reactivex.rxjava3.subjects.PublishSubject;
 import ru.nsu.vbalashov2.icg.filter.FrameWork;
 import ru.nsu.vbalashov2.icg.filter.tools.events.EventPublishSubjects;
 import ru.nsu.vbalashov2.icg.filter.tools.filters.*;
-
-import java.awt.*;
-import java.awt.event.InputEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.WritableRaster;
-import java.io.IOException;
-import java.io.Serial;
+import ru.nsu.vbalashov2.icg.filter.tools.utils.ImageUtils;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.Serial;
 
 /**
  * Image-viewer created in some JScrollPane
@@ -32,11 +26,16 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
     private Dimension panelSize;		// visible image size
     private final JScrollPane spIm;
     private final FrameWork parentComponent;
-    private BufferedImage currentImg = null;	// image to view
+    private BufferedImage currentImg = null; // filtered image
+    private BufferedImage scaledCurrentImg = null; // image to view
     private BufferedImage originalImg = null;   // original image
+    private BufferedImage modifiedImg = null;
     private Dimension imSize = null;	// real image size
     private int lastX=0, lastY=0;		// last captured mouse coordinates
     private final double zoomK = 0.05;	// scroll zoom coefficient
+    private Object interpolationType = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+    private boolean useModifiedImgForDisplaying = true;
+    private final PublishSubject<Boolean> useModifiedImagePublishSubject;
 
     /**
      * Creates default Image-viewer in the given JScrollPane.
@@ -63,6 +62,8 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         panelSize = getVisibleRectSize();	// adjust panel size to maximum visible in scrollPane
         spIm.validate();					// added panel to scrollPane
         // setMaxVisibleRectSize();
+
+        useModifiedImagePublishSubject = eventPublishSubjects.getUseModifiedImagePublishSubject();
 
         addMouseListener(this);
         addMouseMotionListener(this);
@@ -97,11 +98,51 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
 
         eventPublishSubjects.getRealSizePublishSubject().subscribe(event -> realSize());
 
+        eventPublishSubjects.getRotateImageNewAngleDegreesPublishSubject().subscribe(angleDegree -> {
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            if (angleDegree == 0 || originalImg == null) {
+                return;
+            }
+            modifiedImg = ImageUtils.bufferedImageRotate(originalImg, angleDegree, Color.WHITE);
+            eventPublishSubjects.getUseModifiedImagePublishSubject().onNext(true);
+            setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+            realSize();
+            revalidate();
+            repaint();
+            spIm.revalidate();
+            spIm.repaint();
+        });
+
+        eventPublishSubjects.getUseModifiedImagePublishSubject().subscribe(newValue -> {
+            useModifiedImgForDisplaying = newValue;
+            if (useModifiedImgForDisplaying) {
+                setImage(modifiedImg, false);
+            } else {
+                setImage(originalImg, false);
+            }
+            repaint();
+        });
+
+        eventPublishSubjects.getNewInterpolationTypePublishSubject().onNext(interpolationType);
+        eventPublishSubjects.getNewInterpolationTypePublishSubject().subscribe(interpolationType -> {
+            if (interpolationType.equals(RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR)) {
+                this.interpolationType = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+            } else if (interpolationType.equals(RenderingHints.VALUE_INTERPOLATION_BICUBIC)) {
+                this.interpolationType = RenderingHints.VALUE_INTERPOLATION_BICUBIC;
+            } else if (interpolationType.equals(RenderingHints.VALUE_INTERPOLATION_BILINEAR)) {
+                this.interpolationType = RenderingHints.VALUE_INTERPOLATION_BILINEAR;
+            }
+            setImage(currentImg, false);
+        });
+
         BlackWhiteFilter blackWhiteFilter = new BlackWhiteFilter();
         NegativeFilter negativeFilter = new NegativeFilter();
         GaussianBlurFilter gaussianBlurFilter = new GaussianBlurFilter(
                 eventPublishSubjects.getGaussianBlurNewSigmaPublishSubject(),
-                eventPublishSubjects.getGaussianBlurNewRadiusPublishSubject()
+                eventPublishSubjects.getGaussianBlurNewSizePublishSubject()
+        );
+        MedianBlurFilter medianBlurFilter = new MedianBlurFilter(
+                eventPublishSubjects.getMedianBlurNewSizePublishSubject()
         );
         IncreasingSharpnessFilter increasingSharpnessFilter = new IncreasingSharpnessFilter();
         EmbossingFilter embossingFilter = new EmbossingFilter();
@@ -114,25 +155,49 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         SobelOperatorFilter sobelOperatorFilter = new SobelOperatorFilter(
                 eventPublishSubjects.getSobelOperatorNewThresholdPublishSubject()
         );
-        FloydSteinbergDitherFilter floydSteinbergDitherFilter = new FloydSteinbergDitherFilter();
+        FloydSteinbergDitherFilter floydSteinbergDitherFilter = new FloydSteinbergDitherFilter(
+                eventPublishSubjects.getFloydSteinbergDitherNewRedQuantizationNumberPublishSubject(),
+                eventPublishSubjects.getFloydSteinbergDitherNewGreenQuantizationNumberPublishSubject(),
+                eventPublishSubjects.getFloydSteinbergDitherNewBlueQuantizationNumberPublishSubject()
+        );
+        OrderedDitherFilter orderedDitherFilter = new OrderedDitherFilter(
+                eventPublishSubjects.getOrderedDitherNewRedQuantizationNumberPublishSubject(),
+                eventPublishSubjects.getOrderedDitherNewGreenQuantizationNumberPublishSubject(),
+                eventPublishSubjects.getOrderedDitherNewBlueQuantizationNumberPublishSubject()
+        );
+        WatercolorizationFilter watercolorizationFilter = new WatercolorizationFilter(
+                medianBlurFilter,
+                increasingSharpnessFilter
+        );
+        BilateralFilter bilateralFilter = new BilateralFilter();
 
         eventPublishSubjects.getNewFilterTypePublishSubject().subscribe(filter -> {
             if (currentImg == null) {
                 return;
             }
-            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-            currentImg = bufferedImageDeepCopy(originalImg);
-            switch (filter) {
-                case BLACK_WHITE -> blackWhiteFilter.use(originalImg, currentImg);
-                case NEGATIVE -> negativeFilter.use(originalImg, currentImg);
-                case GAUSSIAN_BLUR -> gaussianBlurFilter.use(originalImg, currentImg);
-                case INCREASING_SHARPNESS -> increasingSharpnessFilter.use(originalImg, currentImg);
-                case EMBOSSING -> embossingFilter.use(originalImg, currentImg);
-                case GAMMA_CORRECTION -> gammaCorrectionFilter.use(originalImg, currentImg);
-                case ROBERTS_OPERATOR -> robertsOperatorFilter.use(originalImg, currentImg);
-                case SOBEL_OPERATOR -> sobelOperatorFilter.use(originalImg, currentImg);
-                case FLOYD_STEINBERG_DITHER -> floydSteinbergDitherFilter.use(originalImg, currentImg);
+            if (filter == FilterType.ROTATION) {
+                return;
             }
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            modifiedImg = ImageUtils.bufferedImageDeepCopy(originalImg);
+            switch (filter) {
+                case BLACK_WHITE -> blackWhiteFilter.use(originalImg, modifiedImg);
+                case NEGATIVE -> negativeFilter.use(originalImg, modifiedImg);
+                case GAUSSIAN_BLUR -> gaussianBlurFilter.use(originalImg, modifiedImg);
+                case MEDIAN_BLUR -> medianBlurFilter.use(originalImg, modifiedImg);
+                case INCREASING_SHARPNESS -> increasingSharpnessFilter.use(originalImg, modifiedImg);
+                case EMBOSSING -> embossingFilter.use(originalImg, modifiedImg);
+                case GAMMA_CORRECTION -> gammaCorrectionFilter.use(originalImg, modifiedImg);
+                case ROBERTS_OPERATOR -> robertsOperatorFilter.use(originalImg, modifiedImg);
+                case SOBEL_OPERATOR -> sobelOperatorFilter.use(originalImg, modifiedImg);
+                case FLOYD_STEINBERG_DITHER -> floydSteinbergDitherFilter.use(originalImg, modifiedImg);
+                case ORDERED_DITHER -> orderedDitherFilter.use(originalImg, modifiedImg);
+                case WATERCOLORIZATION -> watercolorizationFilter.use(originalImg, modifiedImg);
+                case BILATERAL -> bilateralFilter.use(originalImg, modifiedImg);
+            }
+
+            eventPublishSubjects.getUseModifiedImagePublishSubject().onNext(true);
+            setImage(modifiedImg, false);
             setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
             revalidate();
             repaint();
@@ -141,11 +206,15 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         });
     }
 
-    private static BufferedImage bufferedImageDeepCopy(BufferedImage bi) {
-        ColorModel cm = bi.getColorModel();
-        boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
-        WritableRaster raster = bi.copyData(null);
-        return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
+    private void fitImageWithScale() {
+        scaledCurrentImg = new BufferedImage(
+                panelSize.width, panelSize.height,
+                currentImg.getType()
+        );
+        Graphics2D graphics2D = scaledCurrentImg.createGraphics();
+        graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolationType);
+        graphics2D.drawImage(currentImg, 0, 0, panelSize.width, panelSize.height, null);
+        graphics2D.dispose();
     }
 
     // public JScrollPane getScrollPane ()	{ return spIm; }
@@ -164,13 +233,16 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
 
     public void paint(Graphics g)
     {
+        g.setColor(new Color(200, 200, 230));
         if (currentImg == null)
         {
-            g.setColor(new Color(200, 200, 230));
             g.fillRect(0, 0, getWidth(), getHeight());
         }
-        else
-            g.drawImage(currentImg, 0, 0, panelSize.width, panelSize.height, null);
+        else {
+            g.fillRect(0, 0, getWidth(), getHeight());
+//            g.drawImage(currentImg, 0, 0, panelSize.width, panelSize.height, null);
+            g.drawImage(scaledCurrentImg, 0, 0, null);
+        }
     }
 
 //	public void update(Graphics g)
@@ -206,8 +278,8 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         Dimension newImSize = new Dimension(currentImg.getWidth(), currentImg.getHeight());
         if (imSize == null)
             defaultView = true;
-        else if ( (newImSize.height != imSize.height) || (newImSize.width != imSize.width) )
-            defaultView = true;
+//        else if ( (newImSize.height != imSize.height) || (newImSize.width != imSize.width) )
+//            defaultView = true;
 
         imSize = newImSize;
 
@@ -227,6 +299,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
             spIm.getViewport().setViewPosition(new Point(0,0));
             //spIm.getHorizontalScrollBar().setValue(0);
             //spIm.getVerticalScrollBar().setValue(0);
+            fitImageWithScale();
             revalidate();	// spIm.validate();
             //spIm.repaint();	// wipe off the old picture in "spare" space
             spIm.paintAll(spIm.getGraphics());
@@ -235,6 +308,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         {
             // just change image
             //repaint();
+            fitImageWithScale();
             spIm.paintAll(spIm.getGraphics());
         }
 
@@ -261,6 +335,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         panelSize.setSize(imSize);
 
         //repaint();
+        fitImageWithScale();
         revalidate();	// spIm.validate();
         spIm.getHorizontalScrollBar().setValue(scroll.x);
         spIm.getVerticalScrollBar().setValue(scroll.y);
@@ -331,6 +406,7 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         panelSize.width = newPW;
         panelSize.height = newPH;
 
+        fitImageWithScale();
         revalidate();
         spIm.validate();
         // сначала нужно, чтобы scroll понял новый размер, потом сдвигать
@@ -396,6 +472,8 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         scroll.y -= e.getY();
         scroll.x += x;
         scroll.y += y;
+
+        fitImageWithScale();
 
         repaint();	// можно и убрать
         revalidate();
@@ -481,8 +559,9 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
     public void mouseClicked(MouseEvent e)
     {
         if ((e.getModifiersEx() == InputEvent.BUTTON2_DOWN_MASK) ||
-                (e.getModifiersEx() == InputEvent.BUTTON3_DOWN_MASK))
-            parentComponent.changeViewedImage();
+                (e.getModifiersEx() == InputEvent.BUTTON3_DOWN_MASK)) {
+            useModifiedImagePublishSubject.onNext(!useModifiedImgForDisplaying);
+        }
 
         if (e.getModifiersEx() == InputEvent.BUTTON1_DOWN_MASK)
         {
