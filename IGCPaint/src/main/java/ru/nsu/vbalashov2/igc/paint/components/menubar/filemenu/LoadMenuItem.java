@@ -22,6 +22,7 @@ public class LoadMenuItem extends JMenuItem {
             fileChooser.setDialogTitle("Select file");
             fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
             fileChooser.setFileFilter(imageFileFilter);
+	    fileChooser.setAcceptAllFileFilterUsed(false);
 
             int result = fileChooser.showOpenDialog(this);
 
