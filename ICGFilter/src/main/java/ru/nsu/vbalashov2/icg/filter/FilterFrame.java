@@ -1,6 +1,11 @@
 package ru.nsu.vbalashov2.icg.filter;
 
+import ru.nsu.vbalashov2.icg.filter.components.ImageScrollPane;
 import ru.nsu.vbalashov2.icg.filter.components.JImagePanel;
+import ru.nsu.vbalashov2.icg.filter.components.dialogs.Dialogs;
+import ru.nsu.vbalashov2.icg.filter.components.menubar.FilterMenuBar;
+import ru.nsu.vbalashov2.icg.filter.components.toolbar.FilterToolBar;
+import ru.nsu.vbalashov2.icg.filter.tools.events.EventPublishSubjects;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,37 +22,31 @@ public class FilterFrame extends JFrame implements FrameWork {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                int result = JOptionPane.showConfirmDialog(
-                        FilterFrame.this,
-                        "Are you sure you want to exit? All unsaved data will be lost.",
-                        "Exit?",
-                        JOptionPane.YES_NO_OPTION
-                );
-
-                if (result == JOptionPane.OK_OPTION) {
-                    System.exit(0);
-                }
+                Dialogs.showExitDialog(FilterFrame.this);
             }
         });
 
-        JScrollPane scrollPane = new JScrollPane();
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        EventPublishSubjects eventPublishSubjects = new EventPublishSubjects();
 
-        JImagePanel imagePanel = new JImagePanel(scrollPane, this);
+        setJMenuBar(new FilterMenuBar(eventPublishSubjects));
 
-        getContentPane().add(scrollPane);
+        ImageScrollPane imageScrollPane = new ImageScrollPane();
+        new JImagePanel(
+                imageScrollPane,
+                this,
+                eventPublishSubjects
+        );
+
+        FilterToolBar filterToolBar = new FilterToolBar(eventPublishSubjects);
+
+        getContentPane().add(filterToolBar, "North");
+        getContentPane().add(imageScrollPane);
 
         setVisible(true);
     }
 
     @Override
-    public void changeViewedImage() {
-
-    }
-
-    @Override
     public void clickImage(int x, int y) {
-
+        System.out.println("CLICK IMAGE CLICKED");
     }
 }
