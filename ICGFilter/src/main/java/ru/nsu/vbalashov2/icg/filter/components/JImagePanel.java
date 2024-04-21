@@ -26,10 +26,9 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
     private Dimension panelSize;		// visible image size
     private final JScrollPane spIm;
     private final FrameWork parentComponent;
-    private BufferedImage currentImg = null; // filtered image
-    private BufferedImage scaledCurrentImg = null; // image to view
-    private BufferedImage originalImg = null;   // original image
-    private BufferedImage modifiedImg = null;
+    private BufferedImage currentImg = null;  // image to view
+    private BufferedImage originalImg = null; // original image
+    private BufferedImage modifiedImg = null; // image with applied filter
     private Dimension imSize = null;	// real image size
     private int lastX=0, lastY=0;		// last captured mouse coordinates
     private final double zoomK = 0.05;	// scroll zoom coefficient
@@ -206,17 +205,6 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         });
     }
 
-    private void fitImageWithScale() {
-        scaledCurrentImg = new BufferedImage(
-                panelSize.width, panelSize.height,
-                currentImg.getType()
-        );
-        Graphics2D graphics2D = scaledCurrentImg.createGraphics();
-        graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolationType);
-        graphics2D.drawImage(currentImg, 0, 0, panelSize.width, panelSize.height, null);
-        graphics2D.dispose();
-    }
-
     // public JScrollPane getScrollPane ()	{ return spIm; }
 
 //    /**
@@ -233,15 +221,15 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
 
     public void paint(Graphics g)
     {
-        g.setColor(new Color(200, 200, 230));
-        if (currentImg == null)
-        {
-            g.fillRect(0, 0, getWidth(), getHeight());
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setColor(new Color(200, 200, 230));
+        if (currentImg == null) {
+            g2d.fillRect(0, 0, getWidth(), getHeight());
         }
         else {
-            g.fillRect(0, 0, getWidth(), getHeight());
-//            g.drawImage(currentImg, 0, 0, panelSize.width, panelSize.height, null);
-            g.drawImage(scaledCurrentImg, 0, 0, null);
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolationType);
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            g2d.drawImage(currentImg, 0, 0, panelSize.width, panelSize.height, null);
         }
     }
 
@@ -299,7 +287,6 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
             spIm.getViewport().setViewPosition(new Point(0,0));
             //spIm.getHorizontalScrollBar().setValue(0);
             //spIm.getVerticalScrollBar().setValue(0);
-            fitImageWithScale();
             revalidate();	// spIm.validate();
             //spIm.repaint();	// wipe off the old picture in "spare" space
             spIm.paintAll(spIm.getGraphics());
@@ -308,7 +295,6 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         {
             // just change image
             //repaint();
-            fitImageWithScale();
             spIm.paintAll(spIm.getGraphics());
         }
 
@@ -335,7 +321,6 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         panelSize.setSize(imSize);
 
         //repaint();
-        fitImageWithScale();
         revalidate();	// spIm.validate();
         spIm.getHorizontalScrollBar().setValue(scroll.x);
         spIm.getVerticalScrollBar().setValue(scroll.y);
@@ -406,7 +391,6 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         panelSize.width = newPW;
         panelSize.height = newPH;
 
-        fitImageWithScale();
         revalidate();
         spIm.validate();
         // сначала нужно, чтобы scroll понял новый размер, потом сдвигать
@@ -472,8 +456,6 @@ public class JImagePanel extends JPanel implements MouseListener, MouseMotionLis
         scroll.y -= e.getY();
         scroll.x += x;
         scroll.y += y;
-
-        fitImageWithScale();
 
         repaint();	// можно и убрать
         revalidate();
