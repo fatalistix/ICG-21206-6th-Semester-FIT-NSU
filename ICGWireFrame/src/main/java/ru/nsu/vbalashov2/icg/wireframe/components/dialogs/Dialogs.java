@@ -1,13 +1,12 @@
 package ru.nsu.vbalashov2.icg.wireframe.components.dialogs;
 
 import javax.swing.*;
-import java.awt.*;
 
 public class Dialogs {
 
-    public static void showExitDialog(Component parentComponent) {
+    public static void showExitDialog() {
         int result = JOptionPane.showConfirmDialog(
-                parentComponent,
+                null,
                 "Are you sure you want to exit? All unsaved data will be lost.",
                 "Exit?",
                 JOptionPane.YES_NO_OPTION
