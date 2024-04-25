@@ -20,7 +20,7 @@ public class SaveMenuItem extends JMenuItem {
         fileChooser.setAcceptAllFileFilterUsed(false);
 
         addActionListener(e -> {
-            int result = fileChooser.showSaveDialog(this);
+            int result = fileChooser.showSaveDialog(null);
 
             if (result == JFileChooser.APPROVE_OPTION) {
                 filePublishSubject.onNext(fileChooser.getSelectedFile());

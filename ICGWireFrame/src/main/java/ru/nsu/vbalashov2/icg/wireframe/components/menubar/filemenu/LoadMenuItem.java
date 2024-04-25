@@ -20,7 +20,7 @@ public class LoadMenuItem extends JMenuItem {
         fileChooser.setAcceptAllFileFilterUsed(false);
 
         addActionListener(e -> {
-            int result = fileChooser.showOpenDialog(this);
+            int result = fileChooser.showOpenDialog(null);
 
             if (result == JFileChooser.APPROVE_OPTION) {
                 filePublishSubject.onNext(fileChooser.getSelectedFile());
