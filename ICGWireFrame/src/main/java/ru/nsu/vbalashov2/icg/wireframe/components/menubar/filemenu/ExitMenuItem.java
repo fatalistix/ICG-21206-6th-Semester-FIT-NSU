@@ -9,6 +9,6 @@ public class ExitMenuItem extends JMenuItem {
     public ExitMenuItem() {
         super("Exit");
 
-        addActionListener(e -> Dialogs.showExitDialog(ExitMenuItem.this));
+        addActionListener(e -> Dialogs.showExitDialog());
     }
 }
