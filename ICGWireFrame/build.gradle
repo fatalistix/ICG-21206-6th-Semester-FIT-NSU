@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+}
+
+group = 'ru.nsu.vbalashov2.icg.wireframe'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // https://mvnrepository.com/artifact/io.reactivex.rxjava3/rxjava
+    implementation 'io.reactivex.rxjava3:rxjava:3.1.8'
+
+    // https://mvnrepository.com/artifact/org.projectlombok/lombok
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+    // https://mvnrepository.com/artifact/org.ejml/ejml-simple
+    implementation 'org.ejml:ejml-simple:0.43.1'
+}
+
+test {
+    useJUnitPlatform()
+}
