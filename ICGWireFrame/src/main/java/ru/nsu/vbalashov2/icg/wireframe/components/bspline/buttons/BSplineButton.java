@@ -1,6 +1,7 @@
-package ru.nsu.vbalashov2.icg.wireframe.components.bspline;
+package ru.nsu.vbalashov2.icg.wireframe.components.bspline.buttons;
 
 import io.reactivex.rxjava3.subjects.PublishSubject;
+import ru.nsu.vbalashov2.icg.wireframe.components.bspline.BSplineEditorCloseStatus;
 
 import javax.swing.*;
 
