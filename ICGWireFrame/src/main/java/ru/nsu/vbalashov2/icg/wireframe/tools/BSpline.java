@@ -3,6 +3,7 @@ package ru.nsu.vbalashov2.icg.wireframe.tools;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 import lombok.Getter;
 import org.ejml.simple.SimpleMatrix;
+import ru.nsu.vbalashov2.icg.wireframe.tools.events.BSplineChangedEvent;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -20,21 +21,50 @@ public class BSpline {
 
     @Getter
     private final List<Point> anchorPoints = new ArrayList<>();
-    private int segmentCount = 4;
 
-    public BSpline(PublishSubject<Integer> newNPublishSubject) {
-        newNPublishSubject.subscribe(n -> segmentCount = n);
+    @Getter
+    private final List<Point> bSplinePoints = new ArrayList<>();
+
+    private int segmentCount = 1;
+
+    private final PublishSubject<List<Point>> anchorPointsPublishSubject;
+    private final PublishSubject<BSplineChangedEvent> bSplineChangedEventPublishSubject;
+
+    public BSpline(
+            PublishSubject<List<Point>> anchorPointsPublishSubject,
+            PublishSubject<Integer> nPublishSubject,
+            PublishSubject<BSplineChangedEvent> bSplineChangedEventPublishSubject
+    ) {
+        this.anchorPointsPublishSubject = anchorPointsPublishSubject;
+        this.bSplineChangedEventPublishSubject = bSplineChangedEventPublishSubject;
+
+        anchorPointsPublishSubject.subscribe(ap -> {
+            if (ap != anchorPoints) {
+                anchorPoints.clear();
+                anchorPoints.addAll(ap);
+                recountBSplinePoints();
+            }
+        });
+
+        nPublishSubject.subscribe(this::setSegmentCount);
+    }
+
+    private void setSegmentCount(int segmentCount) {
+        this.segmentCount = segmentCount;
+        recountBSplinePoints();
     }
 
     public void addAnchorPoint(Point point) {
         anchorPoints.add(point);
+        recountBSplinePoints();
     }
 
     public void removeLastAnchorPoint() {
         anchorPoints.remove(anchorPoints.size() - 1);
+        recountBSplinePoints();
     }
 
-    public int getPointByCoords(Point targetPoint, int r) {
+    public int getPointIDByCoords(Point targetPoint, int r) {
         for (int i = anchorPoints.size() - 1; i >= 0; --i) {
             Point p = anchorPoints.get(i);
             if ((p.x - targetPoint.x) * (p.x - targetPoint.x) + (p.y - targetPoint.y) * (p.y - targetPoint.y) < r * r) {
@@ -48,12 +78,14 @@ public class BSpline {
         Point p = anchorPoints.get(index);
         p.x += diffX;
         p.y += diffY;
+        recountBSplinePoints();
     }
 
     public void removeAnchorPoint(Point targetPoint, int r) {
-        int i = getPointByCoords(targetPoint, r);
+        int i = getPointIDByCoords(targetPoint, r);
         if (i != -1) {
             anchorPoints.remove(i);
+            recountBSplinePoints();
         }
     }
 
@@ -61,8 +93,12 @@ public class BSpline {
         return anchorPoints.size() >= 4;
     }
 
-    public List<Point> createBSplinePoints() {
-        List<Point> bSplinePoints = new ArrayList<>();
+    public void recountBSplinePoints() {
+        if (!canBuild()) {
+            return;
+        }
+
+        bSplinePoints.clear();
 
         for (int i = 1; i < anchorPoints.size() - 2; ++i) {
             SimpleMatrix gx = new SimpleMatrix(new double[] {
@@ -94,6 +130,7 @@ public class BSpline {
                 bSplinePoints.add(new Point((int) x, (int) y));
             }
         }
-        return bSplinePoints;
+
+        bSplineChangedEventPublishSubject.onNext(new BSplineChangedEvent());
     }
 }
