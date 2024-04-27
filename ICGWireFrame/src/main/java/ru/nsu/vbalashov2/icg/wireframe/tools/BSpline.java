@@ -27,7 +27,6 @@ public class BSpline {
 
     private int segmentCount = 1;
 
-    private final PublishSubject<List<Point>> anchorPointsPublishSubject;
     private final PublishSubject<BSplineChangedEvent> bSplineChangedEventPublishSubject;
 
     public BSpline(
@@ -35,7 +34,6 @@ public class BSpline {
             PublishSubject<Integer> nPublishSubject,
             PublishSubject<BSplineChangedEvent> bSplineChangedEventPublishSubject
     ) {
-        this.anchorPointsPublishSubject = anchorPointsPublishSubject;
         this.bSplineChangedEventPublishSubject = bSplineChangedEventPublishSubject;
 
         anchorPointsPublishSubject.subscribe(ap -> {
