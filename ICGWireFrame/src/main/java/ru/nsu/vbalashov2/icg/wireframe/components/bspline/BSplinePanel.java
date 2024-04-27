@@ -14,36 +14,20 @@ public class BSplinePanel extends JPanel {
             PublishSubject<Integer> newM,
             PublishSubject<Integer> newM1
     ) {
-        setLayout(new GridBagLayout());
+        setLayout(new BorderLayout());
 
         PublishSubject<Integer> newK = PublishSubject.create();
 
         // Config for editorPanel
         {
             BSplineEditorPanel editorPanel = new BSplineEditorPanel(anchorPointsPublishSubject, newK, newN);
-            GridBagConstraints c = new GridBagConstraints();
-            c.gridx = 0;
-            c.gridy = 0;
-            c.weightx = 1.;
-            c.weighty = 0.9;
-            c.fill = GridBagConstraints.BOTH;
-            c.anchor = GridBagConstraints.PAGE_START;
-
-            add(editorPanel, c);
+            add(editorPanel, "Center");
         }
 
         // Config for optionsPanel
         {
             BSplineOptionsPanel optionsPanel = new BSplineOptionsPanel(newK, newN, newM, newM1);
-            GridBagConstraints c = new GridBagConstraints();
-            c.gridx = 0;
-            c.gridy = 1;
-            c.weightx = 1.;
-            c.weighty = 0.1;
-            c.fill = GridBagConstraints.BOTH;
-            c.anchor = GridBagConstraints.PAGE_END;
-
-            add(optionsPanel, c);
+            add(optionsPanel, "South");
         }
     }
 }
