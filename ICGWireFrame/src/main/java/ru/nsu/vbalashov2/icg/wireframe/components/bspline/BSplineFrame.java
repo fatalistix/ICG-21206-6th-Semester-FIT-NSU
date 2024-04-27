@@ -2,6 +2,7 @@ package ru.nsu.vbalashov2.icg.wireframe.components.bspline;
 
 
 import io.reactivex.rxjava3.subjects.PublishSubject;
+import ru.nsu.vbalashov2.icg.wireframe.components.bspline.buttons.BSplineButtonsPanel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,20 +28,33 @@ public class BSplineFrame extends JFrame {
             @Override
             public void windowClosing(WindowEvent e) {
                 super.windowClosing(e);
-                setVisible(false);
-            }
-
-            @Override
-            public void windowClosed(WindowEvent e) {
-                super.windowClosed(e);
+                int result = JOptionPane.showConfirmDialog(null, "Save changes?", "Save changes", JOptionPane.YES_NO_CANCEL_OPTION);
+                if (result == JOptionPane.YES_OPTION) {
+                    closeStatusPublishSubject.onNext(BSplineEditorCloseStatus.OK);
+                    setVisible(false);
+                } else if (result == JOptionPane.NO_OPTION) {
+                    closeStatusPublishSubject.onNext(BSplineEditorCloseStatus.CANCEL);
+                    setVisible(false);
+                }
             }
         });
 
-        getContentPane().add(new BSplinePanel(
+        closeStatusPublishSubject.subscribe(closeStatus -> {
+            switch (closeStatus) {
+                case OK, CANCEL -> setVisible(false);
+                case APPLY -> setVisible(true);
+            }
+        });
+
+        BSplinePanel bSplinePanel = new BSplinePanel(
                 anchorPointsPublishSubject,
                 nPublishSubject,
                 mPublishSubject,
                 m1PublishSubject
-        ));
+        );
+        BSplineButtonsPanel bSplineButtonsPanel = new BSplineButtonsPanel(closeStatusPublishSubject);
+
+        getContentPane().add(bSplinePanel);
+        getContentPane().add(bSplineButtonsPanel, "South");
     }
 }
