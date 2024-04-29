@@ -4,11 +4,12 @@ package ru.nsu.vbalashov2.icg.wireframe.components.bspline;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 import ru.nsu.vbalashov2.icg.wireframe.components.bspline.buttons.BSplineButtonsPanel;
 
+import java.util.List;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.List;
 
 public class BSplineFrame extends JFrame {
 
