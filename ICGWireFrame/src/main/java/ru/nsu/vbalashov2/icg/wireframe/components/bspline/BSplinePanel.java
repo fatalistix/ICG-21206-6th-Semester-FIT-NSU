@@ -2,9 +2,9 @@ package ru.nsu.vbalashov2.icg.wireframe.components.bspline;
 
 import io.reactivex.rxjava3.subjects.PublishSubject;
 
+import java.util.List;
 import javax.swing.*;
 import java.awt.*;
-import java.util.List;
 
 public class BSplinePanel extends JPanel {
 
@@ -20,7 +20,11 @@ public class BSplinePanel extends JPanel {
 
         // Config for editorPanel
         {
-            BSplineEditorPanel editorPanel = new BSplineEditorPanel(anchorPointsPublishSubject, newK, newN);
+            BSplineEditorPanel editorPanel = new BSplineEditorPanel(
+                    anchorPointsPublishSubject,
+                    newN,
+                    newK
+            );
             add(editorPanel, "Center");
         }
 
