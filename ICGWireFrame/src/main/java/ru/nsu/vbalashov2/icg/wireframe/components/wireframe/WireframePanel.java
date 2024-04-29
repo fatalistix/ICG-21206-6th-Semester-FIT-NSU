@@ -10,6 +10,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
 
 public class WireframePanel extends JPanel {
@@ -88,8 +89,8 @@ public class WireframePanel extends JPanel {
 
         g2d.setStroke(new BasicStroke((float) STROKE_WIDTH));
 
-        drawWireframe(g2d);
         drawAxes(g2d);
+        drawWireframe(g2d);
     }
 
     private void drawWireframe(Graphics2D g2d) {
@@ -99,9 +100,23 @@ public class WireframePanel extends JPanel {
         List<Line3> formingLines = wireframe.getFormingLines();
         List<Line1> projectionLines = wireframe.getProjectionLines();
 
+        List<LineWithColorValue> lines = new ArrayList<>(formingLines.size());
         for (int i = 0; i < formingLines.size(); i++) {
-            Line3 formingLine = formingLines.get(i);
-            g2d.setColor(countColor(projectionLines.get(i)));
+            lines.add(
+                    new LineWithColorValue(
+                            formingLines.get(i).start(),
+                            formingLines.get(i).end(),
+                            countColorValue(projectionLines.get(i))
+                    )
+            );
+        }
+
+        lines.sort((o1, o2) -> Double.compare(o2.color(), o1.color()));
+
+        for (int i = 0; i < formingLines.size(); i++) {
+            LineWithColorValue formingLine = lines.get(i);
+//            g2d.setColor(countColor(projectionLines.get(i)));
+            g2d.setColor(new Color(formingLine.color(), formingLine.color(), formingLine.color()));
             g2d.drawLine(
                     centerX + (int) (formingLine.start().x() * SCALE_FACTOR),
                     centerY + (int) (formingLine.start().y() * SCALE_FACTOR),
@@ -133,11 +148,20 @@ public class WireframePanel extends JPanel {
         double start = line.start();
         double end = line.end();
 
-        int c = (countColor(start) + countColor(end)) / 2;
+        int c = (countColorValue(start) + countColorValue(end)) / 2;
         return new Color(c, c, c);
     }
 
-    private int countColor(double x) {
+    private int countColorValue(Line1 line) {
+        double start = line.start();
+        double end = line.end();
+
+        return countColorValue((start + end) / 2);
+    }
+
+    private int countColorValue(double x) {
+        // x + 0.5 is a hardcoded value, must be replaced with something that will provide more
+        // accurate color value
         return (int) Math.max(LOW_COLOR, Math.min(HIGH_COLOR, (LOW_COLOR + (HIGH_COLOR - LOW_COLOR) * (x + 0.5))));
     }
 }
