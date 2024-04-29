@@ -14,6 +14,6 @@ public class BSplineButtonsPanel extends JPanel {
         setLayout(new BorderLayout());
 
         add(new BSplineOkApplyButtonsPanel(statusPublishSubject), "West");
-        add(new BSplineButton("Cancel", statusPublishSubject, BSplineEditorCloseStatus.CANCEL), "East");
+        add(new BSplineButton("Cancel", "Close edit window without saving changes", statusPublishSubject, BSplineEditorCloseStatus.CANCEL), "East");
     }
 }

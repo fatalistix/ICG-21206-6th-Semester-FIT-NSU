@@ -9,10 +9,13 @@ public class BSplineButton extends JButton {
 
     public BSplineButton(
             String text,
+            String toolTipText,
             PublishSubject<BSplineEditorCloseStatus> statusPublishSubject,
             BSplineEditorCloseStatus closeStatus
     ) {
         super(text);
+
+        setToolTipText(toolTipText);
 
         addActionListener(e -> statusPublishSubject.onNext(closeStatus));
     }

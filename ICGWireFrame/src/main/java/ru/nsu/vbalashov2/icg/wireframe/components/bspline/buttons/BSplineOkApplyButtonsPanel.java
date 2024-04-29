@@ -13,7 +13,7 @@ public class BSplineOkApplyButtonsPanel extends JPanel {
     ) {
         setLayout(new GridLayout(1, 2));
 
-        add(new BSplineButton("Ok", statusPublishSubject, BSplineEditorCloseStatus.OK));
-        add(new BSplineButton("Apply", statusPublishSubject, BSplineEditorCloseStatus.APPLY));
+        add(new BSplineButton("Ok", "Save changes and close edit window", statusPublishSubject, BSplineEditorCloseStatus.OK));
+        add(new BSplineButton("Apply", "Save changes without closing edit window", statusPublishSubject, BSplineEditorCloseStatus.APPLY));
     }
 }
