@@ -31,11 +31,11 @@ public class WireframeFrame extends JFrame {
             }
         });
 
+        // Creating all main publishSubjects (like event bus) in one class with getters
         EventPublishSubjects eventPublishSubjects = new EventPublishSubjects();
 
-        eventPublishSubjects.getBSplineAnchorPointsEventPublishSubject().subscribe(points -> {
-            anchorPoints = points;
-        });
+        // Frame listens that event for saving b-spline anchor points when needed
+        eventPublishSubjects.getBSplineAnchorPointsEventPublishSubject().subscribe(points -> anchorPoints = points);
 
         setJMenuBar(new WireframeMenuBar(eventPublishSubjects));
 
@@ -62,6 +62,8 @@ public class WireframeFrame extends JFrame {
         eventPublishSubjects.getLoadFilePublishSubject().subscribe(file -> {
             try {
                 List<Point> anchorPoints = fileSaverLoader.loadFile(file);
+                // after loading file, frame notifies all listeners on changing anchor points that now they need to
+                // display that points
                 eventPublishSubjects.getBSplineAnchorPointsEventPublishSubject().onNext(anchorPoints);
             } catch (IOException e) {
                 JOptionPane.showMessageDialog(null, "Error while loading file", "Error", JOptionPane.ERROR_MESSAGE);
