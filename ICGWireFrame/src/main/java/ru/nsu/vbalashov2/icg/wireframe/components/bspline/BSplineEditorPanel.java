@@ -6,9 +6,7 @@ import ru.nsu.vbalashov2.icg.wireframe.tools.events.BSplineChangedEvent;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
+import java.awt.event.*;
 import java.util.List;
 
 public class BSplineEditorPanel extends JPanel {
@@ -36,15 +34,19 @@ public class BSplineEditorPanel extends JPanel {
 
     public BSplineEditorPanel(
             PublishSubject<List<Point>> anchorPointsPublishSubject,
-            PublishSubject<Integer> kPublishSubject,
-            PublishSubject<Integer> nPublishSubject
+            PublishSubject<Integer> nPublishSubject,
+            PublishSubject<Integer> kPublishSubject
     ) {
         setBackground(BACKGROND_COLOR);
 
         PublishSubject<BSplineChangedEvent> bSplineChangedEventPublishSubject = PublishSubject.create();
         bSplineChangedEventPublishSubject.subscribe(be -> repaint());
 
-        bSpline = new BSpline(anchorPointsPublishSubject, nPublishSubject, bSplineChangedEventPublishSubject);
+        bSpline = new BSpline(
+                anchorPointsPublishSubject,
+                nPublishSubject,
+                bSplineChangedEventPublishSubject
+        );
 
         kPublishSubject.subscribe(k -> {
             while (k < bSpline.getAnchorPoints().size()) {
@@ -74,7 +76,7 @@ public class BSplineEditorPanel extends JPanel {
                         kPublishSubject.onNext(bSpline.getAnchorPoints().size());
                     }
                 } else if (e.getModifiersEx() == MouseEvent.BUTTON3_DOWN_MASK) {
-                    bSpline.removeAnchorPoint(coordPoint, ANCHOR_POINT_CIRCLE_RADIUS);
+                    bSpline.removeAnchorPoint(coordPoint, (int) (ANCHOR_POINT_CIRCLE_RADIUS * zoom));
                     kPublishSubject.onNext(bSpline.getAnchorPoints().size());
                 }
                 repaint();
@@ -91,36 +93,49 @@ public class BSplineEditorPanel extends JPanel {
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                int diffX = e.getX() - previousMouseDragPosition.x;
-                int diffY = e.getY() - previousMouseDragPosition.y;
-                previousMouseDragPosition = e.getPoint();
 
                 if (e.getModifiersEx() == MouseEvent.BUTTON2_DOWN_MASK) {
+                    int diffX = e.getX() - previousMouseDragPosition.x;
+                    int diffY = e.getY() - previousMouseDragPosition.y;
                     centerPosition.x += diffX;
                     centerPosition.y += diffY;
                 } else if (e.getModifiersEx() == MouseEvent.BUTTON1_DOWN_MASK && selectedAnchorPointIndex != -1) {
+                    Point previousMouseDragPositionCoord = mapToCoord(previousMouseDragPosition);
+                    Point currentMouseDragPositionCoord = mapToCoord(e.getPoint());
+                    int diffX = currentMouseDragPositionCoord.x - previousMouseDragPositionCoord.x;
+                    int diffY = currentMouseDragPositionCoord.y - previousMouseDragPositionCoord.y;
                     bSpline.addToAnchorPoint(selectedAnchorPointIndex, diffX, diffY);
                 }
 
+                previousMouseDragPosition = e.getPoint();
                 repaint();
             }
+        });
+
+        addMouseWheelListener(e -> {
+            if (e.getWheelRotation() < 0) {
+                zoom *= 1.1;
+            } else {
+                zoom /= 1.1;
+            }
+            repaint();
         });
     }
 
     private Point mapToScreen(Point p) {
-        return new Point(p.x + centerPosition.x, p.y + centerPosition.y);
+        return new Point((int) (p.x * zoom + centerPosition.x), (int) (p.y * zoom + centerPosition.y));
     }
 
     private Point mapToScreen(int x, int y) {
-        return new Point(x + centerPosition.x, y + centerPosition.y);
+        return new Point((int) (x * zoom + centerPosition.x), (int) (y * zoom + centerPosition.y));
     }
 
     private Point mapToCoord(Point p) {
-        return new Point(p.x - centerPosition.x, p.y - centerPosition.y);
+        return new Point((int) ((p.x - centerPosition.x) / zoom), (int) ((p.y - centerPosition.y) / zoom));
     }
 
     private Point mapToCoord(int x, int y) {
-        return new Point(x - centerPosition.x, y - centerPosition.y);
+        return new Point((int) ((x - centerPosition.x) / zoom), (int) ((y - centerPosition.y) / zoom));
     }
 
     private static int getRandomNumber(int min, int max) {
@@ -148,21 +163,23 @@ public class BSplineEditorPanel extends JPanel {
         int centerX = centerPosition.x;
         int centerY = centerPosition.y;
 
+        int divisionLength = (int) (zoom * DIVISION_LENGTH);
+
         // drawing background grid:
         // right vertical lines
-        for (int x = centerX; x < getWidth(); x += DIVISION_LENGTH) {
+        for (int x = centerX; x < getWidth(); x += divisionLength) {
             g.drawLine(x, 0, x, getHeight());
         }
         // left vertical lines
-        for (int x = centerX - DIVISION_LENGTH; x >= 0; x -= DIVISION_LENGTH) {
+        for (int x = centerX - divisionLength; x >= 0; x -= divisionLength) {
             g.drawLine(x, 0, x, getHeight());
         }
         // down horizontal lines
-        for (int y = centerY; y < getHeight(); y += DIVISION_LENGTH) {
+        for (int y = centerY; y < getHeight(); y += divisionLength) {
             g.drawLine(0, y, getWidth(), y);
         }
         // up horizontal lines
-        for (int y = centerY - DIVISION_LENGTH; y >= 0; y -= DIVISION_LENGTH) {
+        for (int y = centerY - divisionLength; y >= 0; y -= divisionLength) {
             g.drawLine(0, y, getWidth(), y);
         }
     }
@@ -177,37 +194,41 @@ public class BSplineEditorPanel extends JPanel {
         g.drawLine(0, centerY, getWidth(), centerY);
         g.drawLine(centerX, 0, centerX, getHeight());
 
+        int majorSerifLength = (int) (zoom * MAJOR_SERIF_LENGTH);
+        int minorSerifLength = (int) (zoom * MINOR_SERIF_LENGTH);
+        int divisionLength = (int) (zoom * DIVISION_LENGTH);
+
         // drawing serifs
         // right vertical serifs
-        for (int x = centerX + DIVISION_LENGTH, i = 0; x < getWidth(); x += DIVISION_LENGTH, ++i) {
+        for (int x = centerX + divisionLength, i = 0; x < getWidth(); x += divisionLength, ++i) {
             if (i % 5 == 0) {
-                g.drawLine(x, centerY - MAJOR_SERIF_LENGTH, x, centerY + MAJOR_SERIF_LENGTH);
+                g.drawLine(x, centerY - majorSerifLength, x, centerY + majorSerifLength);
             } else {
-                g.drawLine(x, centerY - MINOR_SERIF_LENGTH, x, centerY + MINOR_SERIF_LENGTH);
+                g.drawLine(x, centerY - minorSerifLength, x, centerY + minorSerifLength);
             }
         }
         // left vertical serifs
-        for (int x = centerX - DIVISION_LENGTH, i = -1; x >= 0; x -= DIVISION_LENGTH, --i) {
+        for (int x = centerX - divisionLength, i = -1; x >= 0; x -= divisionLength, --i) {
             if (i % 5 == 0) {
-                g.drawLine(x, centerY - MAJOR_SERIF_LENGTH, x, centerY + MAJOR_SERIF_LENGTH);
+                g.drawLine(x, centerY - majorSerifLength, x, centerY + majorSerifLength);
             } else {
-                g.drawLine(x, centerY - MINOR_SERIF_LENGTH, x, centerY + MINOR_SERIF_LENGTH);
+                g.drawLine(x, centerY - minorSerifLength, x, centerY + minorSerifLength);
             }
         }
         // down horizontal serifs
-        for (int y = centerY, i = 1; y < getHeight(); y += DIVISION_LENGTH, ++i) {
+        for (int y = centerY, i = 1; y < getHeight(); y += divisionLength, ++i) {
             if (i % 5 == 0) {
-                g.drawLine(centerX - MAJOR_SERIF_LENGTH, y, centerX + MAJOR_SERIF_LENGTH, y);
+                g.drawLine(centerX - majorSerifLength, y, centerX + majorSerifLength, y);
             } else {
-                g.drawLine(centerX - MINOR_SERIF_LENGTH, y, centerX + MINOR_SERIF_LENGTH, y);
+                g.drawLine(centerX - minorSerifLength, y, centerX + minorSerifLength, y);
             }
         }
         // up horizontal serifs
-        for (int y = centerY - DIVISION_LENGTH, i = -1; y >= 0; y -= DIVISION_LENGTH, --i) {
+        for (int y = centerY - divisionLength, i = -1; y >= 0; y -= divisionLength, --i) {
             if (i % 5 == 0) {
-                g.drawLine(centerX - MAJOR_SERIF_LENGTH, y, centerX + MAJOR_SERIF_LENGTH, y);
+                g.drawLine(centerX - majorSerifLength, y, centerX + majorSerifLength, y);
             } else {
-                g.drawLine(centerX - MINOR_SERIF_LENGTH, y, centerX + MINOR_SERIF_LENGTH, y);
+                g.drawLine(centerX - minorSerifLength, y, centerX + minorSerifLength, y);
             }
         }
     }
