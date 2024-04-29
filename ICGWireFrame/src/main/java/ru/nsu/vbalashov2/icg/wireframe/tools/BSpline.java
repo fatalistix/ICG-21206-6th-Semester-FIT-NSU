@@ -25,9 +25,11 @@ public class BSpline {
     @Getter
     private final List<Point> bSplinePoints = new ArrayList<>();
 
+    @Getter
     private int segmentCount = 1;
 
     private final PublishSubject<BSplineChangedEvent> bSplineChangedEventPublishSubject;
+    private final PublishSubject<List<Point>> bSplineAnchorPointsPublishSubject;
 
     public BSpline(
             PublishSubject<List<Point>> anchorPointsPublishSubject,
@@ -35,21 +37,24 @@ public class BSpline {
             PublishSubject<BSplineChangedEvent> bSplineChangedEventPublishSubject
     ) {
         this.bSplineChangedEventPublishSubject = bSplineChangedEventPublishSubject;
+        this.bSplineAnchorPointsPublishSubject = anchorPointsPublishSubject;
 
         anchorPointsPublishSubject.subscribe(ap -> {
-            if (ap != anchorPoints) {
+            if (!PointUtilities.pointListsEqual(ap, anchorPoints)) {
                 anchorPoints.clear();
                 anchorPoints.addAll(ap);
                 recountBSplinePoints();
             }
         });
 
-        nPublishSubject.subscribe(this::setSegmentCount);
+        nPublishSubject.subscribe(segmentCount -> {
+            setSegmentCount(segmentCount);
+            recountBSplinePoints();
+        });
     }
 
     private void setSegmentCount(int segmentCount) {
         this.segmentCount = segmentCount;
-        recountBSplinePoints();
     }
 
     public void addAnchorPoint(Point point) {
@@ -74,8 +79,8 @@ public class BSpline {
 
     public void addToAnchorPoint(int index, int diffX, int diffY) {
         Point p = anchorPoints.get(index);
-        p.x += diffX;
-        p.y += diffY;
+        Point newP = new Point(p.x + diffX, p.y + diffY);
+        anchorPoints.set(index, newP);
         recountBSplinePoints();
     }
 
@@ -92,11 +97,14 @@ public class BSpline {
     }
 
     public void recountBSplinePoints() {
+        bSplinePoints.clear();
+
+        bSplineAnchorPointsPublishSubject.onNext(anchorPoints);
+
         if (!canBuild()) {
+            bSplineChangedEventPublishSubject.onNext(new BSplineChangedEvent());
             return;
         }
-
-        bSplinePoints.clear();
 
         for (int i = 1; i < anchorPoints.size() - 2; ++i) {
             SimpleMatrix gx = new SimpleMatrix(new double[] {
@@ -117,7 +125,8 @@ public class BSpline {
             SimpleMatrix mgy = m.mult(gy);
 
             double segmentStep = 1. / segmentCount;
-            for (int j = 0; j < segmentCount + 1; ++j) {
+            int target = (i == anchorPoints.size() - 3) ? segmentCount + 1 : segmentCount;
+            for (int j = 0; j < target; ++j) {
                 double t = j * segmentStep;
                 SimpleMatrix tVector = new SimpleMatrix(new double[][]{
                         { t * t * t, t * t, t, 1, },
