@@ -41,6 +41,11 @@ jar {
     }
 }
 
+tasks.register('run', JavaExec) {
+    mainClass = "ru.nsu.vbalashov2.icg.wireframe.Main"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
 test {
     useJUnitPlatform()
 }
